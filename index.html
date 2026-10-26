@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Монитор раскрытий эмитентов облигаций — схема MVP</title>
+<meta name="description" content="AI-сервис, который читает раскрытия эмитентов облигаций из портфеля клиента и присылает сигнал риска с дословной цитатой. Команда AI Columbus, «Инвест. Премаркет».">
+<style>
+:root{
+  --bg:#fafaf8; --fg:#16181d; --muted:#6b7079; --line:#e6e6e1; --card:#ffffff;
+  --accent:#e0a800; --accent-soft:#fff6d6; --danger:#c2410c; --ok:#15803d;
+  --radius:14px; --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0f1115; --fg:#eceef2; --muted:#9097a3; --line:#262a33; --card:#161920;
+        --accent:#ffcc33; --accent-soft:#2a2410; --danger:#fb923c; --ok:#4ade80;}
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font:17px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif}
+main{max-width:860px;margin:0 auto;padding:clamp(28px,6vw,72px) clamp(18px,5vw,40px) 64px}
+header .tag{display:inline-block;font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:7px 12px}
+h1{font-size:clamp(30px,6vw,48px);line-height:1.08;letter-spacing:-.02em;margin:22px 0 16px}
+h1 em{font-style:normal;background:linear-gradient(transparent 62%,var(--accent-soft) 62%)}
+.lead{font-size:clamp(17px,2.4vw,20px);color:var(--muted);max-width:42em;margin:0}
+h2{font-size:clamp(22px,3.6vw,28px);letter-spacing:-.01em;margin:64px 0 16px;display:flex;gap:12px;align-items:baseline}
+h2 span{font:500 13px var(--mono);color:var(--accent)}
+p{margin:0 0 14px}
+.muted{color:var(--muted)}
+.note{font-size:14px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:clamp(18px,3vw,26px)}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:36px}
+.stat b{display:block;font-size:clamp(30px,5vw,40px);line-height:1;letter-spacing:-.02em}
+.stat small{display:block;color:var(--muted);font-size:14px;margin-top:8px;line-height:1.4}
+
+/* pipeline */
+.flow{display:grid;gap:10px}
+.stage{display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:start}
+.stage .lbl{font:500 12px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding-top:12px}
+.nodes{display:flex;flex-wrap:wrap;gap:8px}
+.node{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;flex:1 1 180px}
+.node b{display:block;font-size:15px}
+.node small{display:block;color:var(--muted);font-size:13px;line-height:1.45;margin-top:2px}
+.node.ai{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.node.gate{border-style:dashed;border-color:var(--accent)}
+.arrow{margin-left:164px;color:var(--muted);font:14px var(--mono)}
+.branch{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.branch .node b::before{font:600 12px var(--mono);margin-right:8px}
+.branch .yes b::before{content:"ДА";color:var(--ok)}
+.branch .no b::before{content:"НЕТ";color:var(--danger)}
+
+/* signal card */
+.signal{max-width:520px;margin:0 auto;border-radius:20px;padding:22px;background:var(--card);
+  border:1px solid var(--line);box-shadow:0 18px 40px -24px rgba(0,0,0,.35)}
+.signal .top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.signal .ticker{font-weight:600}
+.signal .ticker small{display:block;color:var(--muted);font-weight:400;font-size:13px}
+.pill{font:600 12px/1 var(--mono);padding:7px 10px;border-radius:999px;background:#fde8dc;color:#9a3412;white-space:nowrap}
+@media (prefers-color-scheme:dark){.pill{background:#3a1d0f;color:#fdba74}}
+.signal h3{font-size:18px;margin:0 0 8px;line-height:1.35}
+.signal blockquote{margin:14px 0;padding:10px 14px;border-left:3px solid var(--accent);background:var(--accent-soft);
+  border-radius:0 8px 8px 0;font-size:15px}
+.signal .meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;margin-top:6px}
+.signal .meta b{color:var(--fg);font-weight:500}
+
+/* tables as definition lists */
+.rows{border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:200px 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+.row dt{font-weight:600}
+.row dd{margin:0}
+
+ol.clean{list-style:none;padding:0;margin:0;counter-reset:i;display:grid;gap:10px}
+ol.clean li{counter-increment:i;display:grid;grid-template-columns:36px 1fr;gap:8px}
+ol.clean li::before{content:counter(i,decimal-leading-zero);font:500 14px/1.7 var(--mono);color:var(--accent)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+a{color:inherit;text-decoration-color:var(--accent);text-underline-offset:3px}
+
+@media (max-width:640px){
+  body{font-size:16px}
+  .stage{grid-template-columns:1fr;gap:6px}
+  .stage .lbl{padding-top:0}
+  .arrow{margin-left:4px}
+  .row{grid-template-columns:1fr;gap:4px}
+  .two,.branch{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <span class="tag">AI Columbus · Инвест. Премаркет · SIGNAL IN</span>
+  <h1>Монитор раскрытий <em>эмитентов облигаций</em></h1>
+  <p class="lead">Сервис читает документы эмитентов, чьи облигации лежат в портфеле клиента, и присылает короткий сигнал риска: что случилось, почему это важно, дословная цитата и ссылка на источник. Это замысел MVP, а не готовый продукт.</p>
+</header>
+
+<div class="stats">
+  <div class="card stat"><b>36</b><small>эмитентов допустили дефолт по облигациям в 2025 году</small></div>
+  <div class="card stat"><b>163 тыс.</b><small>физлиц совершили сделки с проблемными облигациями в 2025 году</small></div>
+  <div class="card stat"><b>48 тыс.</b><small>было годом ранее, в 2024 году</small></div>
+</div>
+<p class="note" style="margin-top:10px">Данные Банка России, <a href="https://www.interfax.ru/business/1077674">Интерфакс</a>.</p>
+
+<h2><span>01</span>Проблема</h2>
+<p>Эмитент заранее публикует тревожные документы: перенос выплаты, смену аудитора, нарушение ковенанта, рост долга в отчётности. Частный инвестор, особенно держатель высокодоходных облигаций, узнаёт о проблеме по падению цены, когда выйти уже дорого.</p>
+<p>Сейчас это закрывают ручным чтением e-disclosure, телеграм-каналами и кредитными рейтингами. Рейтинги обновляются редко и есть не у всех эмитентов ВДО.</p>
+
+<h2><span>02</span>Что получает инвестор</h2>
+<p class="muted">Условный пример с вымышленным эмитентом, чтобы показать формат.</p>
+<div class="signal" role="figure" aria-label="Пример карточки сигнала">
+  <div class="top">
+    <div class="ticker">ООО «Пример-Лизинг», БО-03<small>у вас 40 облигаций</small></div>
+    <span class="pill">Высокий уровень</span>
+  </div>
+  <h3>Эмитент не выплатил купон в срок и обещает выплату в течение 10 рабочих дней</h3>
+  <p style="font-size:15px">Это технический дефолт. Если выплаты не будет за 10 рабочих дней, он перейдёт в дефолт, и держатели смогут требовать досрочного погашения.</p>
+  <blockquote>«…обязательство по выплате купонного дохода не исполнено в срок…»</blockquote>
+  <div class="meta"><span>Источник: <b>сообщение о существенном факте</b></span><span>Оферта: <b>через 47 дней</b></span><span>Погашение: <b>через 1 г. 8 мес.</b></span></div>
+</div>
+<p class="note" style="text-align:center;margin-top:14px">Карточка не говорит, что делать. Решение за инвестором: держать, продать или участвовать в оферте.</p>
+
+<h2><span>03</span>Архитектура MVP</h2>
+<div class="flow">
+  <div class="stage"><div class="lbl">Источники</div><div class="nodes">
+    <div class="node"><b>e-disclosure, сайты эмитентов</b><small>существенные факты, отчётность, решения о выпуске; PDF и HTML</small></div>
+    <div class="node"><b>T-Invest MCP и API</b><small>портфель, параметры выпусков, купоны, оферты, цены</small></div>
+    <div class="node"><b>АКРА, «Эксперт РА»</b><small>рейтинговые релизы</small></div>
+  </div></div>
+  <div class="arrow">↓</div>
+  <div class="stage"><div class="lbl">Сбор</div><div class="nodes">
+    <div class="node"><b>Сборщик</b><small>опрос раз в 10–15 минут по ИНН эмитентов из портфелей</small></div>
+    <div class="node"><b>Извлечение текста</b><small>PDF-парсер, OCR для сканов</small></div>
+  </div></div>
+  <div class="arrow">↓</div>
+  <div class="stage"><div class="lbl">Хранилища</div><div class="nodes">
+    <div class="node"><b>PostgreSQL</b><small>эмитенты, выпуски, документы, события</small></div>
+    <div class="node"><b>pgvector</b><small>фрагменты документов для поиска</small></div>
+    <div class="node"><b>Объектное хранилище</b><small>исходные файлы</small></div>
+  </div></div>
+  <div class="arrow">↓</div>
+  <div class="stage"><div class="lbl">Обработка</div><div class="nodes">
+    <div class="node"><b>Фильтр</b><small>классификатор отсеивает рутинные сообщения до LLM</small></div>
+    <div class="node ai"><b>Экстрактор · LLM + RAG</b><small>JSON: тип события, серьёзность, дословная цитата, затронутые выпуски. Например, T-Pro в своём контуре</small></div>
+  </div></div>
+  <div class="arrow">↓</div>
+  <div class="stage"><div class="lbl">Проверка</div><div class="nodes">
+    <div class="node gate"><b>Верификатор</b><small>код ищет цитату в тексте посимвольно; вторая модель с чистого контекста подтверждает трактовку</small></div>
+  </div></div>
+  <div class="arrow">↓</div>
+  <div class="stage"><div class="lbl">Решение</div><div class="branch">
+    <div class="node yes"><b>Подтверждено</b><small>агент через T-Invest MCP добавляет позиции клиента, купоны, оферты, цену</small></div>
+    <div class="node no"><b>Расхождение</b><small>событие уходит аналитику брокера, а не клиенту</small></div>
+  </div></div>
+  <div class="arrow">↓</div>
+  <div class="stage"><div class="lbl">Доставка</div><div class="nodes">
+    <div class="node"><b>Карточка или пуш</b><small>в приложении инвестора</small></div>
+    <div class="node"><b>Дайджест аналитика</b><small>события высокого уровня и спорные случаи</small></div>
+  </div></div>
+</div>
+<p class="note" style="margin-top:14px">Компоненты связаны очередью задач. Целевая задержка — до часа после публикации документа.</p>
+
+<h2><span>04</span>Почему AI и почему две проверки</h2>
+<div class="two">
+  <div class="card"><b>Правилами не решить</b><p class="muted" style="margin:6px 0 0">Формулировки свободные, одно событие описывают десятками способов. Технический дефолт из-за ошибки платёжного агента и неплатёж из-за нехватки денег звучат похоже. Поиск по слову «реструктуризация» ловит и плановые сообщения.</p></div>
+  <div class="card"><b>Цена ошибки высока</b><p class="muted" style="margin:6px 0 0">Ложная тревога может заставить клиента продать здоровую бумагу с убытком. Поэтому нет цитаты — нет события, а спорное идёт человеку. Этот приём мы уже применяем в своём конвейере разбора документации закупок.</p></div>
+</div>
+<p class="note" style="margin-top:12px">Расчёты остаются обычным кодом там, где он точнее: календарь купонов и оферт, мультипликаторы долга, сопоставление по ISIN.</p>
+
+<h2><span>05</span>Первый эксперимент</h2>
+<dl class="rows">
+  <div class="row"><dt>Гипотеза</dt><dd>По раскрытиям эмитента рост кредитного риска виден раньше, чем цена облигации падает на 10% и больше.</dd></div>
+  <div class="row"><dt>Данные</dt><dd>Выпуски с дефолтом или реструктуризацией в 2024–2025 годах и сопоставимая группа без дефолта; все их раскрытия за 12 месяцев до события.</dd></div>
+  <div class="row"><dt>С чем сравниваем</dt><dd>Поиск по словарю ключевых слов плюс сигнал по понижению рейтинга.</dd></div>
+  <div class="row"><dt>Основная метрика</dt><dd>Полнота: доля дефолтных выпусков, по которым сигнал высокого уровня поднят заранее. Рядом — ложные сигналы на контрольной группе.</dd></div>
+  <div class="row"><dt>Целевые значения</dt><dd>Полнота от 70%, медианное опережение от 14 дней, не больше одного ложного сигнала на выпуск в квартал, 100% цитат проходят проверку на дословность.</dd></div>
+</dl>
+<p class="note" style="margin-top:12px">Пороги — наши целевые ориентиры, а не результат измерений. Уточним их после ретроспективы.</p>
+
+<h2><span>06</span>Что проверяем до основной разработки</h2>
+<ol class="clean">
+  <li><div><b>Опережение.</b> Ретроспектива на 20–30 прошедших дефолтах: есть ли сигнал в документах раньше падения цены.</div></li>
+  <li><div><b>Ложные тревоги.</b> Доля ложных сигналов на контрольной группе.</div></li>
+  <li><div><b>Регуляторика.</b> Формат «только факты и цитаты» согласуем с юристами, чтобы сигнал не сочли индивидуальной инвестрекомендацией.</div></li>
+  <li><div><b>Данные.</b> Пробная выгрузка раскрытий за месяц и условия автоматического сбора.</div></li>
+  <li><div><b>Спрос.</b> Показ прототипа небольшой группе инвесторов и замер открытий карточек.</div></li>
+</ol>
+
+<footer>Команда AI Columbus · «Инвест. Премаркет», Т-Банк · 2026. Материал к анкете этапа SIGNAL IN.</footer>
+</main>
+</body>
+</html>
