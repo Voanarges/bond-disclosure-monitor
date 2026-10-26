@@ -4,117 +4,135 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Монитор раскрытий эмитентов облигаций — схема MVP</title>
-<meta name="description" content="Сервис находит ранние признаки проблем в раскрытиях эмитентов облигаций из портфеля клиента и присылает карточку с дословной цитатой. Команда AI Columbus, «Инвест. Премаркет».">
+<meta name="description" content="Сервис находит ранние признаки проблем в раскрытиях эмитентов облигаций из портфеля клиента и присылает карточку с фактом и дословной цитатой. Команда AI Columbus, «Инвест. Премаркет».">
 <style>
 :root{
-  --bg:#fafaf8; --fg:#16181d; --muted:#6b7079; --line:#e6e6e1; --card:#ffffff;
-  --accent:#e0a800; --accent-soft:#fff6d6; --danger:#c2410c; --ok:#15803d;
+  color-scheme:light dark;
+  --bg:#fafaf8; --fg:#16181d; --muted:#5f646d; --line:#e4e4de; --card:#ffffff;
+  --accent:#e0a800; --accent-text:#8a6a00; --accent-soft:#fff3c4; --ok:#15803d;
   --radius:14px; --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
 }
 @media (prefers-color-scheme:dark){
-  :root{--bg:#0f1115; --fg:#eceef2; --muted:#9097a3; --line:#262a33; --card:#161920;
-        --accent:#ffcc33; --accent-soft:#2a2410; --danger:#fb923c; --ok:#4ade80;}
+  :root{--bg:#0f1115; --fg:#eceef2; --muted:#9aa1ad; --line:#2e333d; --card:#1a1d24;
+        --accent:#ffcc33; --accent-text:#ffcc33; --accent-soft:#3d3312; --ok:#4ade80;}
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--fg);
   font:17px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif}
 main{max-width:860px;margin:0 auto;padding:clamp(28px,6vw,72px) clamp(18px,5vw,40px) 64px}
-header .tag{display:inline-block;font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;
+a{color:inherit;text-decoration-color:var(--accent-text);text-decoration-thickness:1.5px;text-underline-offset:3px}
+a:focus-visible{outline:2px solid var(--accent-text);outline-offset:3px;border-radius:4px}
+.skip{position:absolute;left:-999px;top:8px;background:var(--fg);color:var(--bg);padding:8px 12px;border-radius:8px;z-index:10}
+.skip:focus{left:8px}
+.nw{white-space:nowrap}
+
+header .tag{display:inline-block;font:500 12px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;
   color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:7px 12px}
 h1{font-size:clamp(30px,6vw,48px);line-height:1.08;letter-spacing:-.02em;margin:22px 0 16px}
 h1 em{font-style:normal;background:linear-gradient(transparent 62%,var(--accent-soft) 62%)}
-.lead{font-size:clamp(17px,2.4vw,20px);color:var(--muted);max-width:42em;margin:0}
-h2{font-size:clamp(22px,3.6vw,28px);letter-spacing:-.01em;margin:64px 0 16px;display:flex;gap:12px;align-items:baseline}
-h2 span{font:500 13px var(--mono);color:var(--accent)}
+.lead{font-size:clamp(17px,2.4vw,20px);color:var(--fg);opacity:.78;max-width:42em;margin:0}
+h2{font-size:clamp(22px,3.6vw,28px);letter-spacing:-.01em;margin:64px 0 16px;display:flex;gap:12px;align-items:first baseline}
+h2 span{font:600 13px var(--mono);color:var(--accent-text)}
 p{margin:0 0 14px}
 .muted{color:var(--muted)}
-.note{font-size:14px;color:var(--muted)}
+.note{font-size:14px;color:var(--muted);margin-top:12px}
+.center{text-align:center;max-width:46ch;margin-inline:auto}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:clamp(18px,3vw,26px)}
+code{font:13px var(--mono);overflow-wrap:anywhere}
 
-/* stats */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:36px}
-.stat b{display:block;font-size:clamp(30px,5vw,40px);line-height:1;letter-spacing:-.02em}
-.stat small{display:block;color:var(--muted);font-size:14px;margin-top:8px;line-height:1.4}
-
-/* pipeline */
-.flow{display:grid;gap:10px}
-.stage{display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:start}
-.stage .lbl{font:500 12px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding-top:12px}
-.nodes{display:flex;flex-wrap:wrap;gap:8px}
-.node{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;flex:1 1 180px}
-.node b{display:block;font-size:15px}
-.node small{display:block;color:var(--muted);font-size:13px;line-height:1.45;margin-top:2px}
-.node.ai{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
-.node.gate{border-style:dashed;border-color:var(--accent)}
-.arrow{margin-left:164px;color:var(--muted);font:14px var(--mono)}
-.branch{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.branch .node b::before{font:600 12px var(--mono);margin-right:8px}
-.branch .yes b::before{content:"ДА";color:var(--ok)}
-.branch .no b::before{content:"НЕТ";color:var(--danger)}
-
-/* signal card */
-.signal{max-width:520px;margin:0 auto;border-radius:20px;padding:22px;background:var(--card);
+/* hero signal card */
+.hero-card{margin:36px 0 0}
+.signal{max-width:540px;margin:0 auto;border-radius:20px;padding:20px 20px 16px;background:var(--card);
   border:1px solid var(--line);box-shadow:0 18px 40px -24px rgba(0,0,0,.35)}
-.signal .top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
-.signal .ticker{font-weight:600}
+@media (prefers-color-scheme:dark){.signal{box-shadow:0 0 0 1px var(--line),0 24px 48px -24px #000}}
+.signal .top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:8px 12px;margin-bottom:14px}
+.signal .ticker{flex:1 1 200px;min-width:0;font-weight:600}
 .signal .ticker small{display:block;color:var(--muted);font-weight:400;font-size:13px}
 .pill{font:600 12px/1 var(--mono);padding:7px 10px;border-radius:999px;background:#fde8dc;color:#9a3412;white-space:nowrap}
 @media (prefers-color-scheme:dark){.pill{background:#3a1d0f;color:#fdba74}}
-.signal h3{font-size:18px;margin:0 0 8px;line-height:1.35}
+.signal h3{font-size:17px;letter-spacing:-.01em;margin:0 0 8px;line-height:1.35}
+.signal p{font-size:15px}
 .signal blockquote{margin:14px 0;padding:10px 14px;border-left:3px solid var(--accent);background:var(--accent-soft);
   border-radius:0 8px 8px 0;font-size:15px}
-.signal .meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;margin-top:6px}
-.signal .meta b{color:var(--fg);font-weight:500}
+.signal .meta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;font-size:13px;color:var(--muted);
+  border-top:1px solid var(--line);padding-top:12px;margin-top:6px}
+.signal .src{color:var(--fg);font-weight:500}
+.disclaimer{font-size:12px!important;color:var(--muted);margin:10px 0 0}
+figcaption{font-size:14px;color:var(--muted);margin-top:14px}
 
-/* tables as definition lists */
-.rows{border-top:1px solid var(--line)}
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:40px}
+.stat{padding:18px 20px}
+.stat b{display:block;white-space:nowrap;font-size:clamp(28px,4vw,36px);line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat small{display:block;color:var(--muted);font-size:14px;margin-top:8px;line-height:1.45;max-width:34ch}
+
+.callout{margin-top:18px;border-left:3px solid var(--fg)}
+.callout p{margin:6px 0 0;color:var(--muted)}
+
+/* tiers */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}
+.tier b{display:block;font-size:19px;letter-spacing:-.01em;margin:12px 0 6px}
+.tier ul{margin:0 0 10px;padding-left:18px}
+.tier li{margin:3px 0}
+.tier .muted{font-size:14px;margin:0}
+.ai{border-color:var(--accent)!important}
+.chip{display:inline-block;font:600 13px/1 var(--mono);letter-spacing:.04em;padding:6px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.chip-ai{background:var(--accent);border-color:var(--accent);color:#1a1400}
+
+/* pipeline */
+.flow{list-style:none;padding:0;margin:0;display:grid;gap:0}
+.stage{display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:start}
+.stage .lbl{font:600 13px/1.4 var(--mono);letter-spacing:.04em;color:var(--muted);padding-top:12px}
+.nodes{display:flex;flex-wrap:wrap;gap:8px}
+.node{position:relative;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;flex:1 1 140px}
+.node b{display:block;font-size:15px}
+.node small{display:block;color:var(--muted);font-size:13px;line-height:1.45;margin-top:2px}
+.node code{color:var(--muted)}
+.node .chip{position:absolute;top:-11px;right:10px;font-size:11px;padding:4px 8px;background:var(--card)}
+.node .chip-ai{background:var(--accent)}
+.node.gate{border-color:var(--fg)}
+.node.gate b::before{content:"✓ " / "";color:var(--ok)}
+.link{margin-left:164px;width:1px;height:26px;background:var(--line)}
+.branch{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:6px}
+.merge{margin-left:164px;height:14px;border:1px solid var(--line);border-top:0;border-radius:0 0 10px 10px}
+
+/* rows */
+.rows{border-top:1px solid var(--line);margin:0}
 .row{display:grid;grid-template-columns:200px 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
 .row dt{font-weight:600}
 .row dd{margin:0}
 
-ol.clean{list-style:none;padding:0;margin:0;counter-reset:i;display:grid;gap:10px}
-ol.clean li{counter-increment:i;display:grid;grid-template-columns:36px 1fr;gap:8px}
-ol.clean li::before{content:counter(i,decimal-leading-zero);font:500 14px/1.7 var(--mono);color:var(--accent)}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-
-footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
-a{color:inherit;text-decoration-color:var(--accent);text-underline-offset:3px}
-
-@media (max-width:640px){
-  body{font-size:16px}
-  .stage{grid-template-columns:1fr;gap:6px}
-  .stage .lbl{padding-top:0}
-  .arrow{margin-left:4px}
-  .row{grid-template-columns:1fr;gap:4px}
-  .two,.branch{grid-template-columns:1fr}
-}
-.skip{position:absolute;left:-999px;top:8px;background:var(--fg);color:var(--bg);padding:8px 12px;border-radius:8px;z-index:10}
-.skip:focus{left:8px}
-a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
-code{font:13px var(--mono);background:var(--accent-soft);padding:1px 5px;border-radius:5px;word-break:break-word}
-.stats{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
-.callout{margin-top:18px;border-left:3px solid var(--accent)}
-.callout p{margin:6px 0 0;color:var(--muted)}
-.tier b{display:block;font-size:17px;margin:10px 0 6px}
-.tier ul{margin:0 0 10px;padding-left:18px}
-.tier li{margin:3px 0}
-.tier .muted{font-size:14px;margin:0}
-.tier.ai{border-color:var(--accent)}
-.chip{display:inline-block;font:600 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:6px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
-.chip-ai{background:var(--accent);border-color:var(--accent);color:#1a1400}
-figure.signal{margin:0 auto}
-.signal p{font-size:15px}
-.disclaimer{font-size:12px!important;color:var(--muted);margin:12px 0 0}
-.center{text-align:center;margin-top:14px}
-.note{margin-top:12px}
 ul.checks{list-style:none;padding:0;margin:0;display:grid;gap:8px}
 ul.checks li{padding-left:28px;position:relative}
-ul.checks li::before{content:"✓";position:absolute;left:4px;color:var(--ok);font-weight:700}
+ul.checks li::before{content:"✓" / "";position:absolute;left:4px;color:var(--ok);font-weight:700}
+ol.clean{list-style:none;padding:0;margin:0;counter-reset:i;display:grid;gap:10px}
+ol.clean li{counter-increment:i;display:grid;grid-template-columns:36px 1fr;gap:8px}
+ol.clean li::before{content:counter(i,decimal-leading-zero);font:500 14px/1.7 var(--mono);color:var(--muted)}
 ol.timeline{list-style:none;padding:0;margin:0;border-left:2px solid var(--line);display:grid;gap:14px}
 ol.timeline li{position:relative;padding-left:20px}
 ol.timeline li::before{content:"";position:absolute;left:-7px;top:8px;width:12px;height:12px;border-radius:50%;background:var(--accent)}
+
+footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
 footer p{margin:0 0 8px}
+
+@media (max-width:640px){
+  body{font-size:16px}
+  header .tag{border:0;padding:0;font-size:11px}
+  .lead{font-size:16px}
+  .signal{padding:16px 16px 14px}
+  .pill{order:-1}
+  .stat{padding:14px}
+  .stage{grid-template-columns:1fr;gap:6px}
+  .stage .lbl{padding-top:0}
+  .link,.merge{margin-left:18px}
+  .row{grid-template-columns:1fr;gap:4px}
+  .two,.branch{grid-template-columns:1fr}
+  .branch{gap:14px;padding-top:12px}
+  .nodes .node{flex-basis:100%}
+  dd,.node small{hyphens:auto}
+}
+@media (max-width:420px){ .stats{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -124,8 +142,26 @@ footer p{margin:0 0 8px}
 <header>
   <span class="tag">AI Columbus · Инвест. Премаркет · SIGNAL IN</span>
   <h1>Монитор раскрытий <em>эмитентов облигаций</em></h1>
-  <p class="lead">Сервис следит за документами эмитентов, чьи облигации лежат в портфеле клиента. Когда в отчётности или сообщениях появляется ранний признак проблем, клиент получает короткую карточку: что произошло, дословная цитата и ссылка на источник. Это замысел MVP, а не готовый продукт.</p>
+  <p class="lead">Сервис следит за документами эмитентов, чьи облигации лежат в портфеле клиента. Когда в отчётности появляется ранний признак проблем, клиент получает короткую карточку: что произошло, дословная цитата и ссылка на документ — без советов. Это замысел MVP, а не готовый продукт.</p>
 </header>
+
+<figure class="hero-card" aria-label="Пример карточки сигнала">
+  <div class="signal">
+    <div class="top">
+      <div class="ticker">ООО «Пример-Лизинг», БО-03<small>в вашем портфеле</small></div>
+      <span class="pill">Отчётность · аудитор</span>
+    </div>
+    <h3>Аудитор указал на существенную неопределённость в способности компании продолжать деятельность</h3>
+    <p>Так аудитор сообщает, что у компании может не хватить денег на обязательства в ближайшие 12 месяцев. В том же отчёте долг вырос в 1,8 раза за год.</p>
+    <blockquote>«…существует существенная неопределённость, которая может вызвать значительные сомнения в способности организации продолжать непрерывно свою деятельность…»</blockquote>
+    <div class="meta">
+      <span>Годовая отчётность МСФО, аудиторское заключение</span>
+      <span class="src">Открыть документ ↗</span>
+    </div>
+    <p class="disclaimer">Информационное сообщение. Не является индивидуальной инвестиционной рекомендацией.</p>
+  </div>
+  <figcaption class="center">Условный пример с вымышленным эмитентом. Карточка одинакова для всех держателей выпуска и содержит только факты.</figcaption>
+</figure>
 
 <section class="stats" aria-label="Масштаб проблемы">
   <div class="card stat"><b>36</b><small>эмитентов допустили дефолт по облигациям в 2025 году, 28 из них впервые</small></div>
@@ -137,136 +173,123 @@ footer p{margin:0 0 8px}
 
 <h2 id="problem"><span aria-hidden="true">01</span>Проблема</h2>
 <p>Частный инвестор держит высокодоходные облигации и узнаёт о проблемах эмитента по падению цены, когда выйти уже дорого. Рейтинг не спасает: у большинства эмитентов с техническим дефолтом его нет, а там, где он есть, пересмотр запаздывает.</p>
-<p>При этом эмитент сам публикует тревожные документы: отчётность с ростом долга, заключение аудитора с оговоркой, перенос сроков отчётности, отзыв рейтинга. Читать их по каждой бумаге портфеля частный инвестор не будет.</p>
+<p>При этом эмитент сам публикует тревожные документы: отчётность с ростом долга, заключение аудитора с оговоркой, сведения о нарушении условий кредитных договоров. Читать их по каждой бумаге портфеля частный инвестор не будет.</p>
 <div class="card callout">
   <b>Что уже есть и чем мы отличаемся</b>
   <p>Подписки на раскрытия существуют: бот Boomin, лента СКРИН, самодельные боты по e-disclosure. Они пересылают все сообщения подряд, и клиент тонет в рутине. Мы добавляем три вещи: отбор только тех событий, которые меняют кредитный риск; привязку к бумагам из портфеля внутри приложения брокера; дословную цитату, проверенную кодом.</p>
 </div>
 
-<h2 id="signals"><span aria-hidden="true">02</span>Две полки сигналов: где правило, а где AI</h2>
-<p>Не каждое событие требует модели. Факт неисполнения обязательств по облигациям — отдельный тип сообщения о существенном факте по Положению Банка России 714-П, его ловит правило. AI нужен там, где сигнал ранний и спрятан в свободном тексте.</p>
-<div class="two">
-  <div class="card tier">
-    <span class="chip">Правило, без LLM</span>
-    <b>Событие уже случилось</b>
-    <ul>
-      <li>сообщение о неисполнении обязательств по выпуску</li>
-      <li>дата дефолта из <code>GetBondEvents</code> T-Invest API</li>
-      <li>оферта, погашение, купон по календарю</li>
-    </ul>
-    <p class="muted">Уведомить быстро и точно. Опережения здесь нет — это база, с которой сравниваем.</p>
-  </div>
-  <div class="card tier ai">
-    <span class="chip chip-ai">LLM</span>
-    <b>Ранний признак</b>
-    <ul>
-      <li>оговорка аудитора о непрерывности деятельности</li>
-      <li>рост долга и падение покрытия процентов в отчётности</li>
-      <li>нарушение ковенантов, требования кредиторов</li>
-      <li>перенос отчётности, смена аудитора, отзыв рейтинга</li>
-    </ul>
-    <p class="muted">Формулировки свободные, документы длинные. Ключевые слова дают шум: «реструктуризация» встречается и в плановых сообщениях.</p>
-  </div>
-</div>
-
-<h2 id="card"><span aria-hidden="true">03</span>Что получает инвестор</h2>
-<p class="muted">Условный пример с вымышленным эмитентом. Карточка одинакова для всех держателей выпуска и содержит только факты.</p>
-<figure class="signal" aria-label="Пример карточки сигнала">
-  <div class="top">
-    <div class="ticker">ООО «Пример-Лизинг», БО-03<small>в вашем портфеле</small></div>
-    <span class="pill">Отчётность · аудитор</span>
-  </div>
-  <h3>Аудитор указал на существенную неопределённость в способности компании продолжать деятельность</h3>
-  <p>Так аудитор сообщает, что у компании может не хватить денег на обязательства в ближайшие 12 месяцев. В том же отчёте долг вырос в 1,8 раза за год.</p>
-  <blockquote>«…существует существенная неопределённость, которая может вызвать значительные сомнения в способности организации продолжать непрерывно свою деятельность…»</blockquote>
-  <div class="meta">
-    <span>Источник: <b>годовая отчётность МСФО, аудиторское заключение</b></span>
-    <span>Ближайшая оферта: <b>через 47 дней</b></span>
-  </div>
-  <p class="disclaimer">Информационное сообщение. Не является индивидуальной инвестиционной рекомендацией.</p>
-</figure>
-<p class="note center">Рядом — справка «как устроены оферта и досрочное погашение» без советов, что делать с бумагой.</p>
-
-<h2 id="arch"><span aria-hidden="true">04</span>Архитектура MVP на 11 дней</h2>
-<div class="flow">
-  <div class="stage"><div class="lbl">Источники</div><div class="nodes">
-    <div class="node"><b>Лента раскрытий</b><small>сущфакты и отчётность эмитентов; по договору с Интерфакс-ЦРКИ или через СПАРК</small></div>
-    <div class="node"><b>T-Invest MCP и API</b><small>портфель; <code>risk_level</code> и ликвидность выпуска; <code>GetBondEvents</code>; график отчётности <code>GetAssetReports</code></small></div>
-    <div class="node"><b>MOEX ISS</b><small>справочник эмитент → выпуски, история цен и оборотов</small></div>
-  </div></div>
-  <div class="arrow" aria-hidden="true">↓</div>
-  <div class="stage"><div class="lbl">Подготовка</div><div class="nodes">
-    <div class="node"><b>Привязка и дедупликация</b><small>документ → эмитент → все его выпуски; перепубликации и исправления склеиваются</small></div>
-    <div class="node"><b>Жизненный цикл события</b><small>например: просрочка → устранена или переросла в дефолт</small></div>
-  </div></div>
-  <div class="arrow" aria-hidden="true">↓</div>
-  <div class="stage"><div class="lbl">Разбор</div><div class="branch">
-    <div class="node"><b>Правило</b><small>тип сообщения по 714-П, дата дефолта из API</small></div>
-    <div class="node ai"><b>LLM-экстрактор</b><small>T-Pro 2.1 в своём контуре; документ целиком в контексте; JSON: тип признака, цитата, затронутые выпуски</small></div>
-  </div></div>
-  <div class="arrow" aria-hidden="true">↓</div>
-  <div class="stage"><div class="lbl">Проверка</div><div class="nodes">
-    <div class="node gate"><b>Цитата сверяется кодом</b><small>нет дословной цитаты в документе — нет карточки; выборка карточек размечается человеком, считаем согласие</small></div>
-  </div></div>
-  <div class="arrow" aria-hidden="true">↓</div>
-  <div class="stage"><div class="lbl">Доставка</div><div class="nodes">
-    <div class="node"><b>Карточка в приложении</b><small>через T-Invest MCP подтягиваются оферты и купоны выпуска</small></div>
-    <div class="node"><b>Дайджест аналитика</b><small>спорные случаи и сводка по выпускам</small></div>
-  </div></div>
-</div>
-<p class="note">Сознательно не берём в MVP векторный поиск, OCR и пуш-инфраструктуру: документы помещаются в контекст модели, а сообщения о сущфактах публикуются текстом.</p>
-
-<h2 id="business"><span aria-hidden="true">05</span>Зачем это брокеру</h2>
+<h2 id="business"><span aria-hidden="true">02</span>Зачем это брокеру</h2>
 <dl class="rows">
   <div class="row"><dt>Ценность для клиента</dt><dd>Узнать о раннем признаке проблем раньше рынка и спокойно решить, что делать с бумагой, без чтения десятков документов.</dd></div>
   <div class="row"><dt>Ценность для брокера</dt><dd>Меньше неожиданных убытков у клиентов и меньше претензий после дефолтов, выше доверие к облигациям как продукту.</dd></div>
-  <div class="row"><dt>Метрики</dt><dd>Доля держателей, получивших карточку раньше рыночного сигнала; обращения в поддержку и жалобы после кредитных событий; удержание держателей облигаций через 90 дней после события.</dd></div>
-  <div class="row"><dt>Модель</dt><dd>Бесплатно для держателей облигаций как сервис удержания; дайджест для аналитиков и риск-менеджмента брокера как внутренний инструмент.</dd></div>
+  <div class="row"><dt>Метрики</dt><dd>Доля держателей, получивших карточку раньше рыночного сигнала (устойчивого падения цены); обращения в поддержку после кредитных событий; удержание держателей облигаций через 90 дней после события. Исходный уровень снимаем на ретроспективе и в песочнице; цель пилота — опережение рынка хотя бы в половине событий.</dd></div>
+  <div class="row"><dt>Бизнес-модель</dt><dd>Бесплатно для держателей облигаций как сервис удержания; дайджест для аналитиков и риск-менеджмента брокера как внутренний инструмент. Главная статья затрат — лицензия на ленту раскрытий; цену запрашиваем до старта.</dd></div>
   <div class="row"><dt>Бумаги, размещённые брокером</dt><dd>Те же правила, без фильтрации: карточка — это факт и цитата, а не оценка бумаги. Политику согласуем с комплаенсом заранее.</dd></div>
 </dl>
 
-<h2 id="legal"><span aria-hidden="true">06</span>Как не стать инвестиционной рекомендацией</h2>
-<p>По статье 6.1 39-ФЗ и критериям Банка России рекомендацией считается и то, что клиент может разумно воспринять как совет по конкретной бумаге. Поэтому формат ограничен с самого начала:</p>
-<ul class="checks">
+<h2 id="signals"><span aria-hidden="true">03</span>Где хватает правила, а где нужен AI</h2>
+<p>Многие события эмитент публикует отдельными типами сообщений о существенных фактах по Положению Банка России 714-П, а часть данных уже есть в API брокера. Такие события ловит простое правило, без модели. AI нужен там, где сигнал ранний и спрятан в длинном свободном тексте.</p>
+<div class="two">
+  <div class="card tier">
+    <span class="chip">Правило, без LLM</span>
+    <b>Тип сообщения или поле API</b>
+    <ul>
+      <li>неисполнение обязательств по выпуску</li>
+      <li>изменение кредитного рейтинга</li>
+      <li>требования владельцев о досрочном погашении</li>
+      <li>отчётность не вышла в срок по графику из API брокера</li>
+      <li>оферта, погашение, купон по календарю</li>
+    </ul>
+    <p class="muted">Уведомить быстро и точно. Это и главный соперник AI в эксперименте.</p>
+  </div>
+  <div class="card tier ai">
+    <span class="chip chip-ai">LLM</span>
+    <b>Ранний признак в тексте</b>
+    <ul>
+      <li>оговорка аудитора о непрерывности деятельности</li>
+      <li>нарушение ковенантов — условий кредитных договоров — в примечаниях к отчётности</li>
+      <li>рост долга и падение покрытия процентов</li>
+      <li>судебные требования крупных кредиторов</li>
+    </ul>
+    <p class="muted">Формулировки свободные, отчёты на десятки страниц. Ключевые слова дают шум: «реструктуризация» встречается и в плановых сообщениях.</p>
+  </div>
+</div>
+
+<h2 id="arch"><span aria-hidden="true">04</span>Архитектура MVP на 11 дней</h2>
+<ol class="flow" role="list">
+  <li class="stage"><div class="lbl">Источники</div><div class="nodes">
+    <div class="node"><b>Лента раскрытий</b><small>сообщения о существенных фактах и отчётность; по договору с уполномоченными агентствами раскрытия — Интерфакс-ЦРКИ и другими</small></div>
+    <div class="node"><b>API <span class="nw">T-Invest</span> и MCP-сервер</b><small>портфель; события выпуска <code>GetBondEvents</code>; график отчётности <code>GetAssetReports</code>; <code>risk_level</code></small></div>
+    <div class="node"><b>MOEX ISS</b><small>открытый API Мосбиржи: эмитент → выпуски, история цен и оборотов</small></div>
+  </div></li>
+  <li class="link" aria-hidden="true"></li>
+  <li class="stage"><div class="lbl">Подготовка</div><div class="nodes">
+    <div class="node"><b>Привязка и дедупликация</b><small>документ → эмитент → все его выпуски; перепубликации и исправления склеиваются</small></div>
+    <div class="node"><b>Текст и разделы</b><small>распознавание сканов (OCR) для PDF без текста; отчёт режется на разделы: аудиторское заключение, примечания о долге</small></div>
+  </div></li>
+  <li class="link" aria-hidden="true"></li>
+  <li class="stage"><div class="lbl">Разбор</div><div class="branch">
+    <div class="node"><span class="chip">Правило</span><b>Тип сообщения или поле API</b><small>неисполнение, рейтинг, досрочное погашение, просроченная отчётность</small></div>
+    <div class="node ai"><span class="chip chip-ai">LLM</span><b>Экстрактор</b><small>T-Pro 2.1 на серверах банка, штатный контекст 32 тыс. токенов; на выходе — тип признака, цитата, затронутые выпуски</small></div>
+  </div></li>
+  <li class="merge" aria-hidden="true"></li>
+  <li class="link" aria-hidden="true"></li>
+  <li class="stage"><div class="lbl">Проверка</div><div class="nodes">
+    <div class="node gate"><b>Цитата сверяется кодом</b><small>нет дословной цитаты в документе — нет карточки; часть карточек проверяет человек, считаем, как часто он согласен с моделью</small></div>
+  </div></li>
+  <li class="link" aria-hidden="true"></li>
+  <li class="stage"><div class="lbl">Доставка</div><div class="nodes">
+    <div class="node"><b>Карточка в приложении</b><small>по бумагам из портфеля клиента, через MCP-сервер</small></div>
+    <div class="node"><b>Дайджест аналитика</b><small>спорные случаи и сводка по выпускам</small></div>
+  </div></li>
+</ol>
+<p class="note">Связь через очередь задач, цель — карточка в пределах часа после публикации. Векторный поиск в MVP не нужен: каждый раздел отчёта помещается в контекст модели целиком.</p>
+
+<h2 id="legal"><span aria-hidden="true">05</span>Как не стать инвестиционной рекомендацией</h2>
+<p>По Базовому стандарту инвестиционных советников Банка России (п. 1.1) рекомендацией считается и информация, которую клиент может разумно воспринять как данную с учётом его финансового положения, целей или допустимого риска. Поэтому формат ограничен с самого начала:</p>
+<ul class="checks" role="list">
   <li>только факт, цитата и ссылка на документ; без оценок «высокий риск» и без слов «продайте» или «держите»;</li>
   <li>карточка одинакова для всех держателей выпуска и не зависит от профиля клиента;</li>
-  <li>справка о механике оферты и досрочного погашения — общая, а не про конкретного клиента;</li>
+  <li>в карточке нет сроков оферты и призывов к действию — механику оферты клиент найдёт в общей справке приложения;</li>
   <li>явная оговорка, что сервис не гарантирует полноту: пропущенный сигнал не должен выглядеть как обещание предупредить.</li>
 </ul>
 
-<h2 id="experiment"><span aria-hidden="true">07</span>Первый эксперимент</h2>
+<h2 id="experiment"><span aria-hidden="true">06</span>Первый эксперимент</h2>
 <dl class="rows">
-  <div class="row"><dt>Гипотеза</dt><dd>Ранние признаки, найденные LLM в документах, появляются раньше рыночного сигнала — устойчивой просадки цены облигации.</dd></div>
-  <div class="row"><dt>Рыночный сигнал</dt><dd>Средневзвешенная цена за 5 дней ниже на 10% и больше, при минимальном обороте, чтобы не ловить шум неликвидных бумаг.</dd></div>
-  <div class="row"><dt>Данные</dt><dd>Панель «эмитент × неделя» без заглядывания в будущее; события — дата дефолта из API, сообщения о неисполнении и рыночный сигнал. Контроль — эмитенты без событий, подобранные по сектору, рейтингу и доходности.</dd></div>
-  <div class="row"><dt>Защита от утечки</dt><dd>Настройка на событиях 2024 года, тест на 2025–2026 годах с замороженными промптами; имена эмитентов скрыты, отдельно проверяем события после даты отсечки знаний модели.</dd></div>
-  <div class="row"><dt>С чем сравниваем</dt><dd>Правило по типам сообщений 714-П; <code>risk_level</code> из T-Invest API; сам рыночный сигнал; поиск по ключевым словам.</dd></div>
-  <div class="row"><dt>Метрики</dt><dd>Точность и полнота на уровне эмитента, медианное опережение рыночного сигнала, ложные карточки на клиента в квартал; все — с бутстреп-интервалами.</dd></div>
-  <div class="row"><dt>Целевые значения</dt><dd>Точность от 50%, медианное опережение от 14 дней, не больше одной ложной карточки в квартал на портфель из 15 облигаций, 100% цитат проходят сверку.</dd></div>
+  <div class="row"><dt>Гипотеза</dt><dd>Ранние признаки, найденные LLM, появляются раньше рыночного сигнала и раньше правила по типам сообщений.</dd></div>
+  <div class="row"><dt>Что считаем событием</dt><dd>Первый дефолт или технический дефолт, не устранённый за 10 рабочих дней, — по сообщениям о неисполнении обязательств.</dd></div>
+  <div class="row"><dt>Верная карточка</dt><dd>Карточка по эмитенту, пришедшая за 3–180 дней до события.</dd></div>
+  <div class="row"><dt>Рыночный сигнал</dt><dd>Средняя цена за 5 дней, взвешенная по объёму, упала на 10% и больше при минимальном обороте. Нужен только для замера опережения.</dd></div>
+  <div class="row"><dt>Данные</dt><dd>Понедельные данные по каждому эмитенту — только то, что было известно на ту дату. Контроль — эмитенты без событий, подобранные по сектору, доходности и объёму выпуска.</dd></div>
+  <div class="row"><dt>Чтобы модель не знала исход</dt><dd>Настройка на событиях 2024 года, тест на 2025–2026 годах с замороженными промптами. Цитаты могут выдать эмитента, поэтому главный тест — события после даты отсечки знаний модели.</dd></div>
+  <div class="row"><dt>С чем сравниваем</dt><dd>Главный соперник — правило по всем типам сообщений 714-П плюс ключевые слова; второй — сам рыночный сигнал. Оценку риска выпуска из API (<code>risk_level</code>) сравниваем только на живых данных пилота: её истории в API нет.</dd></div>
+  <div class="row"><dt>Метрики и пороги</dt><dd>Точность (доля верных карточек) не ниже 50% по нижней границе 95% доверительного интервала; медианное опережение рыночного сигнала от 14 дней; не больше одной ложной карточки в квартал на портфель из 15 облигаций; 100% цитат проходят сверку.</dd></div>
 </dl>
-<p class="note">Пороги — наши ориентиры, а не результат измерений. Событий немного, поэтому решение принимаем по нижней границе интервала, а выборку пополняем: во II квартале 2026 года технический дефолт допустили 29 эмитентов против 16 годом ранее.</p>
+<p class="note">Событий немного: по нашей оценке, в тест попадёт 40–60 эмитентов. Поэтому решение принимаем по нижней границе интервала, а не по точечной оценке. Пороги — наши ориентиры, а не результат измерений.</p>
 
-<h2 id="plan"><span aria-hidden="true">08</span>План на 11 дней</h2>
-<ol class="timeline">
-  <li><b>Дни 1–2.</b> Доступ к ленте раскрытий, справочник эмитент → выпуски, выгрузка данных API по облигациям.</li>
+<h2 id="plan"><span aria-hidden="true">07</span>План на 11 дней</h2>
+<ol class="timeline" role="list">
+  <li><b>До старта.</b> Запрос доступа к ленте раскрытий через организаторов; ручная проверка опережения на 5 прошедших событиях.</li>
+  <li><b>Дни 1–2.</b> Справочник эмитент → выпуски, выгрузка данных API по облигациям, архив документов по выборке.</li>
   <li><b>Дни 3–5.</b> Правило по типам сообщений, LLM-экстрактор, сверка цитат; разметка 100 документов.</li>
-  <li><b>Дни 6–8.</b> Ретроспектива на событиях 2025–2026 годов, сравнение с базовыми способами.</li>
-  <li><b>Дни 9–10.</b> Карточка в прототипе приложения через T-Invest MCP, дайджест аналитика.</li>
-  <li><b>День 11.</b> Демо на живых раскрытиях и честный отчёт по метрикам.</li>
+  <li><b>Дни 6–8.</b> Ретроспектива на событиях 2025–2026 годов и сравнение с правилом.</li>
+  <li><b>Дни 9–10.</b> Карточка в прототипе приложения через MCP-сервер, дайджест аналитика.</li>
+  <li><b>День 11.</b> Демо и честный отчёт по метрикам. Если лицензии к старту нет — демо на вручную собранном корпусе из публичных документов.</li>
 </ol>
 
-<h2 id="risks"><span aria-hidden="true">09</span>Риски и как проверяем их заранее</h2>
-<ol class="clean">
-  <li><div><b>Доступ к данным.</b> Сайт e-disclosure закрыт для автоматического сбора, API Интерфакса платный. Проверка — договор или пробный доступ через Т-Банк до старта; запасной вариант — СПАРК.</div></li>
+<h2 id="risks"><span aria-hidden="true">08</span>Риски и как проверяем их заранее</h2>
+<ol class="clean" role="list">
+  <li><div><b>Доступ к данным.</b> e-disclosure закрыт для автоматического сбора, лента Интерфакса платная, а часть эмитентов раскрывается через другие агентства. Проверка — до старта узнать цену и охват лицензии; СПАРК не считаем запасным вариантом, это тот же поставщик.</div></li>
   <li><div><b>Нет опережения.</b> Рынок может узнавать раньше документов. Проверка — ручная ретроспектива на 5 событиях до основной разработки.</div></li>
-  <li><div><b>Ложные тревоги.</b> Клиент продаёт здоровую бумагу с убытком. Проверка — точность на контрольной группе и порог на клиента, а не на выпуск.</div></li>
+  <li><div><b>Ложные тревоги.</b> Клиент продаёт здоровую бумагу с убытком. Проверка — точность на контрольной группе и лимит ложных карточек на клиента, а не на выпуск.</div></li>
   <li><div><b>Регуляторика.</b> Карточку сочтут рекомендацией. Проверка — согласовать шаблон с комплаенсом до показа клиентам.</div></li>
-  <li><div><b>Редкость событий.</b> Держатель ВДО может получать карточку редко, и сервис забудут. Проверка — посчитать частоту по портфелям в песочнице; при низкой частоте — дайджест вместо пушей.</div></li>
+  <li><div><b>Редкость событий.</b> Держатель высокодоходных облигаций может получать карточку редко, и сервис забудут. Проверка — частота по портфелям в песочнице; при низкой частоте — дайджест вместо пушей.</div></li>
 </ol>
 
 <footer>
   <p>Команда AI Columbus · «Инвест. Премаркет», Т-Банк · 2026. Материал к анкете этапа SIGNAL IN.</p>
-  <p>Источники: Банк России — <a href="https://www.interfax.ru/business/1077674">обзор за 2025 год</a>, <a href="https://cbr.ru/Collection/Collection/File/62294/review_broker_Q2_2026.pdf">обзор брокерских операций за II кв. 2026</a>; <a href="https://github.com/RussianInvestments/investAPI/blob/main/src/docs/contracts/instruments.proto">контракты T-Invest API</a>; <a href="https://huggingface.co/t-tech/T-pro-it-2.1">T-Pro 2.1</a>.</p>
+  <p>Источники: Банк России — <a href="https://www.interfax.ru/business/1077674">обзор за 2025 год</a>, <a href="https://cbr.ru/Collection/Collection/File/62294/review_broker_Q2_2026.pdf">обзор брокерских операций за II кв. 2026</a>, <a href="https://cbr.ru/StaticHtml/File/17579/standart_17112023.pdf">Базовый стандарт инвестиционных советников</a>; <a href="https://github.com/RussianInvestments/investAPI/blob/main/src/docs/contracts/instruments.proto">контракты T-Invest API</a>; <a href="https://huggingface.co/t-tech/T-pro-it-2.1">T-Pro 2.1</a>; <a href="https://group.interfax.ru/products/systems/disclosure/">агентства раскрытия информации</a>.</p>
 </footer>
 </main>
 </body>
